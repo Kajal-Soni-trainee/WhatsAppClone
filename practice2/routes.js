@@ -26,6 +26,8 @@ const {
   delMsg,
   checkSeen,
   deleteForMe,
+  getBlockedContacts,
+  unblockContact,
 } = require("./controllers/messages");
 const {
   addStatus,
@@ -84,7 +86,7 @@ route.post(
   passport.authenticate("jwt", { session: false }),
   setSeen
 );
-route.get(
+route.post(
   "/deleteContact",
   passport.authenticate("jwt", { session: false }),
   deleteContact
@@ -147,5 +149,15 @@ route.get(
   "/getUserDetails",
   passport.authenticate("jwt", { session: false }),
   getUserDetails
+);
+route.get(
+  "/getBlockedContacts",
+  passport.authenticate("jwt", { session: false }),
+  getBlockedContacts
+);
+route.post(
+  "/unblockContact",
+  passport.authenticate("jwt", { session: false }),
+  unblockContact
 );
 module.exports = route;

@@ -4,5 +4,6 @@ const state = {
   statusOfContacts: [],
   usersStatus: [],
   allContacts: [],
+  blockedContacts: [],
 };
 export default state;

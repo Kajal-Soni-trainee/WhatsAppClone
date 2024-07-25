@@ -5,13 +5,14 @@
     <v-btn class="text-h5" @click="showStatus">Status</v-btn>
     <v-btn class="text-h5" @click="showContacts">Contacts</v-btn>
     <v-btn class="text-h5" @click="addContact">New Contact</v-btn>
+    <v-btn class="text-h5" @click="blockedContact">Blocked Contacts</v-btn>
     <v-btn class="text-h5" @click="logout">Logout</v-btn>
   </v-toolbar>
 </template>
 <script setup>
 import { useRouter } from "vue-router";
 import { useStore } from "vuex";
-//import { axiosGet } from "../services/service";
+
 const router = useRouter();
 const store = useStore();
 function showStatus() {
@@ -26,8 +27,10 @@ function addContact() {
 function home() {
   router.push({ name: "HomePage" });
 }
+function blockedContact() {
+  router.push({ name: "BlockedContact" });
+}
 async function logout() {
-  //const result = await axiosGet("/logout");
   localStorage.removeItem("token");
   localStorage.removeItem("user_id");
   localStorage.removeItem("name");

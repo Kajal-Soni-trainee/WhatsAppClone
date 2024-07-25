@@ -6,7 +6,14 @@
       v-for="contact in contacts"
       :key="contact.id"
       :elevation="12"
-      @click="showMsg(contact.name, contact.user.u_img, contact.user.id)"
+      @click="
+        showMsg(
+          contact.name,
+          contact.user.u_img,
+          contact.user.id,
+          contact.deletedAt
+        )
+      "
     >
       <div class="d-flex flex-row">
         <v-icon size="100px" v-if="contact.user.u_img == null"
@@ -46,12 +53,17 @@ const contacts = computed(() => {
   return store.state.contacts.allContacts;
 });
 
-async function showMsg(name, img, user_id) {
+async function showMsg(name, img, user_id, contactDeletedAt) {
   const result = await axiosPost("/checkSeen", { sender_id: user_id });
   if (result.status == 200) {
     router.push({
       name: "Messages",
-      query: { name: name, img: img, user_id: user_id },
+      query: {
+        name: name,
+        img: img,
+        user_id: user_id,
+        contactDeletedAt: contactDeletedAt,
+      },
     });
   }
 }

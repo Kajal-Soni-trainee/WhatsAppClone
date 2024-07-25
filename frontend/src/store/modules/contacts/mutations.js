@@ -14,5 +14,8 @@ const mutations = {
   SET_ALL_CONTACTS(state, payload) {
     state.allContacts = payload.data;
   },
+  SET_BLOCKED_CONTACTS(state, payload) {
+    state.blockedContacts = payload.data;
+  },
 };
 export default mutations;

@@ -5,8 +5,10 @@ const actions = {
     commit("SET_CONTACTS_BY_MSG", { data: getContacts.data });
   },
   async triggerSetMessagesByContactId({ commit }, payload) {
+    console.log(payload);
+    console.log(payload.blockedAt);
     const result = await axiosGet(
-      `/getAllMsgs/?receiver_id=${payload.user_id}`
+      `/getAllMsgs/?receiver_id=${payload.user_id}&blockedAt=${payload.blockedAt}`
     );
     console.log(result.data);
     commit("SET_MESSAGES_BY_CONTACT_ID", { data: result.data });
@@ -22,6 +24,10 @@ const actions = {
   async triggerSetAllContacts({ commit }) {
     const result = await axiosGet("/getContacts");
     commit("SET_ALL_CONTACTS", { data: result.data });
+  },
+  async triggerSetBlockedContacts({ commit }) {
+    const result = await axiosGet("/getBlockedContacts");
+    commit("SET_BLOCKED_CONTACTS", { data: result.data });
   },
 };
 

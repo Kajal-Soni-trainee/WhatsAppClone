@@ -110,18 +110,38 @@ const getMessages = async (req, res) => {
     resultMsg.map(async (element) => {
       if (element.sender_id == personal_id) {
         const user = await users.findByPk(element.receiver_id);
+        const deletedByContact = await contactList.findOne({
+          where: {
+            personal_id: element.receiver_id,
+            contact_id: personal_id,
+          },
+          raw: true,
+          paranoid: false,
+        });
+
         const contactDetails = await contactList.findOne({
           where: {
             personal_id: personal_id,
             contact_id: element.receiver_id,
           },
+          paranoid: false,
           raw: true,
         });
+        console.log(contactDetails);
         let name = "";
+        let isDeletedByContact = "";
+        let deletedAt = "";
         if (contactDetails == null) {
           name = user.contact;
+          deletedAt = null;
         } else {
           name = contactDetails.name;
+          deletedAt = contactDetails.deletedAt;
+        }
+        if (deletedByContact == null) {
+          isDeletedByContact = null;
+        } else {
+          isDeletedByContact = deletedByContact.deletedAt;
         }
         return {
           ...element,
@@ -129,21 +149,44 @@ const getMessages = async (req, res) => {
           img: user.u_img,
           user_id: user.id,
           number: user.contact,
+          contactDeletedAt: deletedAt,
+          isDeletedByContact: isDeletedByContact,
         };
       } else {
         const user = await users.findByPk(element.sender_id);
+
+        const deletedByContact = await contactList.findOne({
+          where: {
+            personal_id: element.sender_id,
+            contact_id: personal_id,
+          },
+          raw: true,
+          paranoid: false,
+        });
+
         const contactDetails = await contactList.findOne({
           where: {
             personal_id: personal_id,
             contact_id: element.sender_id,
           },
+          paranoid: false,
           raw: true,
         });
+        console.log(contactDetails);
         let name = "";
+        let deletedAt = "";
+        let isDeletedByContact = "";
         if (contactDetails == null) {
           name = user.contact;
+          deletedAt = null;
         } else {
           name = contactDetails.name;
+          deletedAt = contactDetails.deletedAt;
+        }
+        if (deletedByContact == null) {
+          isDeletedByContact = null;
+        } else {
+          isDeletedByContact = deletedByContact.deletedAt;
         }
         return {
           ...element,
@@ -151,6 +194,8 @@ const getMessages = async (req, res) => {
           img: user.u_img,
           user_id: user.id,
           number: user.contact,
+          contactDeletedAt: deletedAt,
+          isDeletedByContact: isDeletedByContact,
         };
       }
     })
@@ -181,7 +226,9 @@ const getContacts = async (req, res) => {
 const getAllMsgs = async (req, res) => {
   const sender_id = req.user.id;
   const receiver_id = req.query.receiver_id;
-
+  const blockedAt = req.query.blockedAt;
+  console.log("blocked At " + blockedAt);
+  console.log("blockedAt " + blockedAt);
   const chanel = await chanels.findOne({
     attribures: ["id"],
     where: {
@@ -194,29 +241,58 @@ const getAllMsgs = async (req, res) => {
     },
   });
   if (chanel != null) {
-    const allMsgs = await messages.findAll({
-      where: {
-        chanel_id: chanel.id,
-      },
-      raw: true,
-      paranoid: false,
-    });
+    if (blockedAt == "null") {
+      const allMsgs = await messages.findAll({
+        where: {
+          chanel_id: chanel.id,
+        },
+        raw: true,
+        paranoid: false,
+      });
 
-    const allNonDeletedMsg = await Promise.all(
-      allMsgs.map(async (element) => {
-        let isDeleted = false;
-        const delMsg = await deletedMsgs.findOne({
-          where: {
-            message_id: element.id,
-            deletedBy: sender_id,
+      const allNonDeletedMsg = await Promise.all(
+        allMsgs.map(async (element) => {
+          let isDeleted = false;
+          const delMsg = await deletedMsgs.findOne({
+            where: {
+              message_id: element.id,
+              deletedBy: sender_id,
+            },
+            raw: true,
+          });
+          return { ...element, isDeleted: delMsg };
+        })
+      );
+
+      res.json(allNonDeletedMsg);
+    } else {
+      const allMsgs = await messages.findAll({
+        where: {
+          chanel_id: chanel.id,
+          createdAt: {
+            [Op.lt]: blockedAt,
           },
-          raw: true,
-        });
-        return { ...element, isDeleted: delMsg };
-      })
-    );
+        },
+        raw: true,
+        paranoid: false,
+      });
 
-    res.json(allNonDeletedMsg);
+      const allNonDeletedMsg = await Promise.all(
+        allMsgs.map(async (element) => {
+          let isDeleted = false;
+          const delMsg = await deletedMsgs.findOne({
+            where: {
+              message_id: element.id,
+              deletedBy: sender_id,
+            },
+            raw: true,
+          });
+          return { ...element, isDeleted: delMsg };
+        })
+      );
+
+      res.json(allNonDeletedMsg);
+    }
   } else {
     res.json("chanel blocked");
   }
@@ -240,7 +316,7 @@ const setSeen = async (req, res) => {
 };
 
 const deleteContact = async (req, res) => {
-  const contact_id = req.query.contact_id;
+  const contact_id = req.body.contact_id;
   const personal_id = req.user.id;
   try {
     const delContactList = await contactList.destroy({
@@ -249,26 +325,26 @@ const deleteContact = async (req, res) => {
         personal_id: personal_id,
       },
     });
-    const getChanel = await chanels.findOne({
-      where: {
-        user1_id: {
-          [Op.or]: [contact_id, personal_id],
-        },
-        user2_id: {
-          [Op.or]: [contact_id, personal_id],
-        },
-      },
-    });
-    const delChanel = await chanels.destroy({
-      where: {
-        id: getChanel.id,
-      },
-    });
-    const deleteMsg = await messages.destroy({
-      where: {
-        chanel_id: getChanel.id,
-      },
-    });
+    // const getChanel = await chanels.findOne({
+    //   where: {
+    //     user1_id: {
+    //       [Op.or]: [contact_id, personal_id],
+    //     },
+    //     user2_id: {
+    //       [Op.or]: [contact_id, personal_id],
+    //     },
+    //   },
+    // });
+    // const delChanel = await chanels.destroy({
+    //   where: {
+    //     id: getChanel.id,
+    //   },
+    // });
+    // const deleteMsg = await messages.destroy({
+    //   where: {
+    //     chanel_id: getChanel.id,
+    //   },
+    // });
     res.json(true);
   } catch (err) {
     console.log(err);
@@ -322,6 +398,47 @@ const deleteForMe = async (req, res) => {
     console.log(err);
   }
 };
+const getBlockedContacts = async (req, res) => {
+  const personal_id = req.user.id;
+  try {
+    const result = await contactList.findAll({
+      paranoid: false,
+      where: {
+        personal_id: personal_id,
+        deletedAt: {
+          [Op.ne]: null,
+        },
+      },
+      include: {
+        model: users,
+        required: true,
+      },
+    });
+    res.json(result);
+  } catch (err) {
+    console.log(err);
+  }
+};
+
+const unblockContact = async (req, res) => {
+  const contact_id = req.body.contact_id;
+  try {
+    const result = await contactList.update(
+      {
+        deletedAt: null,
+      },
+      {
+        paranoid: false,
+        where: {
+          id: contact_id,
+        },
+      }
+    );
+    res.json(result);
+  } catch (err) {
+    console.log(err);
+  }
+};
 module.exports = {
   addToContact,
   sendMsg,
@@ -333,4 +450,6 @@ module.exports = {
   delMsg,
   checkSeen,
   deleteForMe,
+  getBlockedContacts,
+  unblockContact,
 };

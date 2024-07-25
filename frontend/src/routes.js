@@ -36,6 +36,11 @@ const routes = [
     component: () => import("./components/addContact.vue"),
     path: "/addToContact",
   },
+  {
+    name: "BlockedContact",
+    component: () => import("./components/blockedContact.vue"),
+    path: "/blockedContacts",
+  },
 ];
 
 const router = createRouter({

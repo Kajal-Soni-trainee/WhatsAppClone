@@ -1,7 +1,7 @@
 <template>
   <div class="mainDiv">
     <v-card width="1400px" :elevation="12">
-      <v-toolbar width="1400px">
+      <v-toolbar width="1400px" class="pa-5">
         <v-icon
           size="x-large"
           width="50px"
@@ -10,24 +10,33 @@
           @click="back"
         ></v-icon>
 
-        <div class="d-flex flex-row">
-          <v-icon size="74" v-if="img == null">mdi-account-circle</v-icon>
-          <v-img
-            max-height="80px"
-            max-width="80px"
-            contain
-            class="rounded-circle"
-            v-else
-            :src="'http://localhost:3000' + img"
-          ></v-img>
-          <div class="d-flex flex-column pa-3">
-            <p class="text-h6">{{ name }}</p>
-            <template v-if="isOnline != null">
-              <p class="float-left" v-if="isOnline.status == 0">Online</p>
-              <p class="float-left" v-else><b>Offline</b></p>
-            </template>
-          </div>
+        <!-- <div class="d-flex flex-row"> -->
+        <v-icon size="74" @click="blockContact" v-if="img == null"
+          >mdi-account-circle</v-icon
+        >
+        <v-img
+          max-height="85px"
+          max-width="85px"
+          contain
+          class="rounded-circle"
+          v-else
+          :src="'http://localhost:3000' + img"
+        ></v-img>
+        <div class="d-flex flex-column pa-3">
+          <p class="text-h6">{{ name }}</p>
+          <template v-if="isDeletedByContact != null">
+            <p class="float-left"><b>Offline</b></p>
+          </template>
+          <template v-else-if="isOnline != null">
+            <p class="float-left" v-if="isOnline.status == 0">Online</p>
+            <p class="float-left" v-else><b>Offline</b></p>
+          </template>
         </div>
+        <!-- </div> -->
+        <v-spacer></v-spacer>
+        <v-icon size="30px" class="float-right pa-4" @click="blockContact"
+          >mdi-block-helper</v-icon
+        >
       </v-toolbar>
       <div class="scroll bg-green-lighten-4" style="height: 1000px">
         <template v-for="message in messages" :key="message.id">
@@ -127,6 +136,8 @@ const sender_id = ref(null);
 const name = ref(route.query.name);
 const img = ref(route.query.img);
 const user_id = ref(route.query.user_id);
+const contactDeletedAt = ref(route.query.contactDeletedAt);
+const isDeletedByContact = ref(route.query.isDeletedByContact);
 const messages = computed(() => {
   return store.state.contacts.messagesByContactId;
 });
@@ -156,17 +167,22 @@ function getCreatedTime(time) {
 }
 
 async function sendMsg() {
-  if (message.value != "") {
-    const result = await axiosPost("/sendMsg", {
-      receiver_id: user_id.value,
-      msg: message.value,
-    });
-    if (result.status == 200) {
-      message.value = "";
-      socket.emit("sentMsg", message.value);
-      await store.dispatch("triggerSetMessagesByContactId", {
-        user_id: user_id.value,
+  if (contactDeletedAt.value != null) {
+    alert("You have deleted the contact unblock to send message");
+  } else {
+    if (message.value != "") {
+      const result = await axiosPost("/sendMsg", {
+        receiver_id: user_id.value,
+        msg: message.value,
       });
+      if (result.status == 200) {
+        message.value = "";
+        socket.emit("sentMsg", message.value);
+        await store.dispatch("triggerSetMessagesByContactId", {
+          user_id: user_id.value,
+          blockedAt: contactDeletedAt.value,
+        });
+      }
     }
   }
 }
@@ -193,6 +209,7 @@ async function deleteForMe() {
     delDialog.value = false;
     await store.dispatch("triggerSetMessagesByContactId", {
       user_id: user_id.value,
+      blockedAt: contactDeletedAt.value,
     });
   }
 }
@@ -202,13 +219,27 @@ async function deleteForEveryone() {
     socket.on("sentMsg", 1);
     await store.dispatch("triggerSetMessagesByContactId", {
       user_id: user_id.value,
+      blockedAt: contactDeletedAt.value,
     });
+  }
+}
+
+async function blockContact() {
+  console.log("blocking aaaaaaaaaaaaaaaaaaa");
+  const result = await axiosPost(`/deleteContact`, {
+    contact_id: user_id.value,
+  });
+  if (result.status == 200) {
+    console.log(result.data);
+    router.push({ name: "HomePage" });
   }
 }
 onMounted(async () => {
   console.log(user_id.value);
+  console.log("blocked at " + contactDeletedAt.value);
   await store.dispatch("triggerSetMessagesByContactId", {
     user_id: user_id.value,
+    blockedAt: contactDeletedAt.value,
   });
   await store.dispatch("triggerSetIsOnline", { user_id: user_id.value });
   console.log("cv cvbcvb", store.state.users.isOnline);
@@ -216,15 +247,18 @@ onMounted(async () => {
     console.log(event);
     await store.dispatch("triggerSetMessagesByContactId", {
       user_id: user_id.value,
+      blockedAt: contactDeletedAt.value,
     });
   });
 });
 
 onUpdated(async () => {
   console.log("updating");
+  console.log("blocked at " + contactDeletedAt.value);
   const result = await axiosPost("/checkSeen", { sender_id: user_id.value });
   await store.dispatch("triggerSetMessagesByContactId", {
     user_id: user_id.value,
+    blockedAt: contactDeletedAt.value,
   });
   console.log(result);
 });
